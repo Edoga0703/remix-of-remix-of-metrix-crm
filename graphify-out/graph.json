@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-10T22:58:25.971534+00:00",
+  "generated_at": "2026-10-10T23:20:31.608016+00:00",
   "files": [
     {
       "path": "roadmap.md",
@@ -571,7 +571,7 @@
     },
     {
       "path": "src/lib/crm-engine.server.ts",
-      "bytes": 16041
+      "bytes": 16218
     },
     {
       "path": "src/lib/knowledge-extract.server.ts",
@@ -763,7 +763,7 @@
     },
     {
       "path": "src/lib/evolution-helpers.ts",
-      "bytes": 12303
+      "bytes": 12961
     },
     {
       "path": "src/lib/sector-assignment.server.ts",
@@ -1107,7 +1107,7 @@
     },
     {
       "path": "src/lib/evolution.functions.ts",
-      "bytes": 53075
+      "bytes": 53150
     },
     {
       "path": "src/lib/integrations.functions.ts",
@@ -2423,7 +2423,7 @@
     },
     {
       "path": "src/routes/app/conversas.tsx",
-      "bytes": 179457
+      "bytes": 185962
     },
     {
       "path": "src/routes/app/treinamentos.tsx",
@@ -2703,11 +2703,11 @@
     },
     {
       "path": "src/routes/api/public/whatsapp-webhook.ts",
-      "bytes": 9959
+      "bytes": 10322
     },
     {
       "path": "src/routes/api/public/meta-webhook.ts",
-      "bytes": 19769
+      "bytes": 23507
     },
     {
       "path": "src/routes/api/public/v1/$.ts",
@@ -15794,6 +15794,14 @@
     {
       "source": "src/routes/api/public/meta-webhook.ts",
       "target": "@/lib/meta.server"
+    },
+    {
+      "source": "src/routes/api/public/meta-webhook.ts",
+      "target": "@/lib/crm-engine.server"
+    },
+    {
+      "source": "src/routes/api/public/meta-webhook.ts",
+      "target": "@/lib/inbound-automation.server"
     },
     {
       "source": "src/routes/api/public/meta-webhook.ts",
