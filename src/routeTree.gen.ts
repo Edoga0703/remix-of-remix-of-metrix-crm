@@ -35,6 +35,7 @@ import { Route as AppComercialRouteImport } from './routes/app/comercial'
 import { Route as AppConexaoRouteImport } from './routes/app/conexao'
 import { Route as AppConfiguracoesRouteImport } from './routes/app/configuracoes'
 import { Route as AppContatosRouteImport } from './routes/app/contatos'
+import { Route as AppConteudoRouteImport } from './routes/app/conteudo'
 import { Route as AppConversasRouteImport } from './routes/app/conversas'
 import { Route as AppCrmRouteImport } from './routes/app/crm'
 import { Route as AppDashboardRouteImport } from './routes/app/dashboard'
@@ -104,6 +105,7 @@ import { Route as ApiPublicHooksAgendamentosDispatchRouteImport } from './routes
 import { Route as ApiPublicHooksBillingRenewRouteImport } from './routes/api/public/hooks/billing-renew'
 import { Route as ApiPublicHooksGoogleCalendarRouteImport } from './routes/api/public/hooks/google-calendar'
 import { Route as ApiPublicHooksGoogleCalendarRenewRouteImport } from './routes/api/public/hooks/google-calendar-renew'
+import { Route as ApiPublicHooksMetaSyncRouteImport } from './routes/api/public/hooks/meta-sync'
 import { Route as ApiPublicHooksProcessAgendamentosRouteImport } from './routes/api/public/hooks/process-agendamentos'
 import { Route as ApiPublicHooksProcessCampaignsRouteImport } from './routes/api/public/hooks/process-campaigns'
 import { Route as ApiPublicHooksProcessKanbanReguasRouteImport } from './routes/api/public/hooks/process-kanban-reguas'
@@ -246,6 +248,11 @@ const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
 const AppContatosRoute = AppContatosRouteImport.update({
   id: '/contatos',
   path: '/contatos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConteudoRoute = AppConteudoRouteImport.update({
+  id: '/conteudo',
+  path: '/conteudo',
   getParentRoute: () => AppRoute,
 } as any)
 const AppConversasRoute = AppConversasRouteImport.update({
@@ -604,6 +611,11 @@ const ApiPublicHooksGoogleCalendarRenewRoute =
     path: '/api/public/hooks/google-calendar-renew',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksMetaSyncRoute = ApiPublicHooksMetaSyncRouteImport.update({
+  id: '/api/public/hooks/meta-sync',
+  path: '/api/public/hooks/meta-sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksProcessAgendamentosRoute =
   ApiPublicHooksProcessAgendamentosRouteImport.update({
     id: '/api/public/hooks/process-agendamentos',
@@ -695,6 +707,7 @@ export interface FileRoutesByFullPath {
   '/app/conexao': typeof AppConexaoRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/contatos': typeof AppContatosRoute
+  '/app/conteudo': typeof AppConteudoRoute
   '/app/conversas': typeof AppConversasRoute
   '/app/crm': typeof AppCrmRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -764,6 +777,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/billing-renew': typeof ApiPublicHooksBillingRenewRoute
   '/api/public/hooks/google-calendar': typeof ApiPublicHooksGoogleCalendarRoute
   '/api/public/hooks/google-calendar-renew': typeof ApiPublicHooksGoogleCalendarRenewRoute
+  '/api/public/hooks/meta-sync': typeof ApiPublicHooksMetaSyncRoute
   '/api/public/hooks/process-agendamentos': typeof ApiPublicHooksProcessAgendamentosRoute
   '/api/public/hooks/process-campaigns': typeof ApiPublicHooksProcessCampaignsRoute
   '/api/public/hooks/process-kanban-reguas': typeof ApiPublicHooksProcessKanbanReguasRoute
@@ -802,6 +816,7 @@ export interface FileRoutesByTo {
   '/app/conexao': typeof AppConexaoRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/contatos': typeof AppContatosRoute
+  '/app/conteudo': typeof AppConteudoRoute
   '/app/conversas': typeof AppConversasRoute
   '/app/crm': typeof AppCrmRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -870,6 +885,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/billing-renew': typeof ApiPublicHooksBillingRenewRoute
   '/api/public/hooks/google-calendar': typeof ApiPublicHooksGoogleCalendarRoute
   '/api/public/hooks/google-calendar-renew': typeof ApiPublicHooksGoogleCalendarRenewRoute
+  '/api/public/hooks/meta-sync': typeof ApiPublicHooksMetaSyncRoute
   '/api/public/hooks/process-agendamentos': typeof ApiPublicHooksProcessAgendamentosRoute
   '/api/public/hooks/process-campaigns': typeof ApiPublicHooksProcessCampaignsRoute
   '/api/public/hooks/process-kanban-reguas': typeof ApiPublicHooksProcessKanbanReguasRoute
@@ -910,6 +926,7 @@ export interface FileRoutesById {
   '/app/conexao': typeof AppConexaoRoute
   '/app/configuracoes': typeof AppConfiguracoesRoute
   '/app/contatos': typeof AppContatosRoute
+  '/app/conteudo': typeof AppConteudoRoute
   '/app/conversas': typeof AppConversasRoute
   '/app/crm': typeof AppCrmRoute
   '/app/dashboard': typeof AppDashboardRoute
@@ -979,6 +996,7 @@ export interface FileRoutesById {
   '/api/public/hooks/billing-renew': typeof ApiPublicHooksBillingRenewRoute
   '/api/public/hooks/google-calendar': typeof ApiPublicHooksGoogleCalendarRoute
   '/api/public/hooks/google-calendar-renew': typeof ApiPublicHooksGoogleCalendarRenewRoute
+  '/api/public/hooks/meta-sync': typeof ApiPublicHooksMetaSyncRoute
   '/api/public/hooks/process-agendamentos': typeof ApiPublicHooksProcessAgendamentosRoute
   '/api/public/hooks/process-campaigns': typeof ApiPublicHooksProcessCampaignsRoute
   '/api/public/hooks/process-kanban-reguas': typeof ApiPublicHooksProcessKanbanReguasRoute
@@ -1020,6 +1038,7 @@ export interface FileRouteTypes {
     | '/app/conexao'
     | '/app/configuracoes'
     | '/app/contatos'
+    | '/app/conteudo'
     | '/app/conversas'
     | '/app/crm'
     | '/app/dashboard'
@@ -1089,6 +1108,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/billing-renew'
     | '/api/public/hooks/google-calendar'
     | '/api/public/hooks/google-calendar-renew'
+    | '/api/public/hooks/meta-sync'
     | '/api/public/hooks/process-agendamentos'
     | '/api/public/hooks/process-campaigns'
     | '/api/public/hooks/process-kanban-reguas'
@@ -1127,6 +1147,7 @@ export interface FileRouteTypes {
     | '/app/conexao'
     | '/app/configuracoes'
     | '/app/contatos'
+    | '/app/conteudo'
     | '/app/conversas'
     | '/app/crm'
     | '/app/dashboard'
@@ -1195,6 +1216,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/billing-renew'
     | '/api/public/hooks/google-calendar'
     | '/api/public/hooks/google-calendar-renew'
+    | '/api/public/hooks/meta-sync'
     | '/api/public/hooks/process-agendamentos'
     | '/api/public/hooks/process-campaigns'
     | '/api/public/hooks/process-kanban-reguas'
@@ -1234,6 +1256,7 @@ export interface FileRouteTypes {
     | '/app/conexao'
     | '/app/configuracoes'
     | '/app/contatos'
+    | '/app/conteudo'
     | '/app/conversas'
     | '/app/crm'
     | '/app/dashboard'
@@ -1303,6 +1326,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/billing-renew'
     | '/api/public/hooks/google-calendar'
     | '/api/public/hooks/google-calendar-renew'
+    | '/api/public/hooks/meta-sync'
     | '/api/public/hooks/process-agendamentos'
     | '/api/public/hooks/process-campaigns'
     | '/api/public/hooks/process-kanban-reguas'
@@ -1362,6 +1386,7 @@ export interface RootRouteChildren {
   ApiPublicHooksBillingRenewRoute: typeof ApiPublicHooksBillingRenewRoute
   ApiPublicHooksGoogleCalendarRoute: typeof ApiPublicHooksGoogleCalendarRoute
   ApiPublicHooksGoogleCalendarRenewRoute: typeof ApiPublicHooksGoogleCalendarRenewRoute
+  ApiPublicHooksMetaSyncRoute: typeof ApiPublicHooksMetaSyncRoute
   ApiPublicHooksProcessAgendamentosRoute: typeof ApiPublicHooksProcessAgendamentosRoute
   ApiPublicHooksProcessCampaignsRoute: typeof ApiPublicHooksProcessCampaignsRoute
   ApiPublicHooksProcessKanbanReguasRoute: typeof ApiPublicHooksProcessKanbanReguasRoute
@@ -1557,6 +1582,13 @@ declare module '@tanstack/react-router' {
       path: '/contatos'
       fullPath: '/app/contatos'
       preLoaderRoute: typeof AppContatosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/conteudo': {
+      id: '/app/conteudo'
+      path: '/conteudo'
+      fullPath: '/app/conteudo'
+      preLoaderRoute: typeof AppConteudoRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/conversas': {
@@ -2042,6 +2074,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksGoogleCalendarRenewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/meta-sync': {
+      id: '/api/public/hooks/meta-sync'
+      path: '/api/public/hooks/meta-sync'
+      fullPath: '/api/public/hooks/meta-sync'
+      preLoaderRoute: typeof ApiPublicHooksMetaSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/process-agendamentos': {
       id: '/api/public/hooks/process-agendamentos'
       path: '/api/public/hooks/process-agendamentos'
@@ -2147,6 +2186,7 @@ interface AppRouteChildren {
   AppConexaoRoute: typeof AppConexaoRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppContatosRoute: typeof AppContatosRoute
+  AppConteudoRoute: typeof AppConteudoRoute
   AppConversasRoute: typeof AppConversasRoute
   AppCrmRoute: typeof AppCrmRoute
   AppDashboardRoute: typeof AppDashboardRoute
@@ -2174,6 +2214,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConexaoRoute: AppConexaoRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppContatosRoute: AppContatosRoute,
+  AppConteudoRoute: AppConteudoRoute,
   AppConversasRoute: AppConversasRoute,
   AppCrmRoute: AppCrmRoute,
   AppDashboardRoute: AppDashboardRoute,
@@ -2298,6 +2339,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksGoogleCalendarRoute: ApiPublicHooksGoogleCalendarRoute,
   ApiPublicHooksGoogleCalendarRenewRoute:
     ApiPublicHooksGoogleCalendarRenewRoute,
+  ApiPublicHooksMetaSyncRoute: ApiPublicHooksMetaSyncRoute,
   ApiPublicHooksProcessAgendamentosRoute:
     ApiPublicHooksProcessAgendamentosRoute,
   ApiPublicHooksProcessCampaignsRoute: ApiPublicHooksProcessCampaignsRoute,
