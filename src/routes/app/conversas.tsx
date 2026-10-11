@@ -66,6 +66,7 @@ import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { canTransferConversation } from "@/lib/tenant";
 import { salvarRelatorioAtendimento, sugerirRelatorioAtendimento, type AtendimentoSituacao } from "@/lib/atendimento-relatorios.functions";
 import { prepareR2Upload } from "@/lib/storage/r2.functions";
+import { syncMetaNow } from "@/lib/meta-content.functions";
 
 
 export const Route = createFileRoute("/app/conversas")({
@@ -248,6 +249,8 @@ function ConversasPage() {
   const [csatFormato, setCsatFormato] = useState<string>("link");
   const [csatAoFinalizar, setCsatAoFinalizar] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const syncMetaFn = useServerFn(syncMetaNow);
+  const [syncingMeta, setSyncingMeta] = useState(false);
   const [agentConfig, setAgentConfig] = useState<{ avatar_traits?: any, avatar_url?: string, nome_agente?: string } | null>(null);
 
   useEffect(() => {
@@ -1224,6 +1227,59 @@ function ConversasPage() {
     }
   }
 
+  async function handleSyncMeta() {
+    const metaInsts = instances.filter(
+      (instance) => instance.provider === "meta_messenger" || instance.provider === "meta_instagram",
+    );
+    if (metaInsts.length === 0) {
+      toast.error("Nenhuma conta Meta conectada.");
+      return;
+    }
+    setSyncingMeta(true);
+    try {
+      let totalMsgs = 0;
+      const failures: string[] = [];
+      for (const instance of metaInsts) {
+        try {
+          const response = await syncMetaFn({
+            data: { instanceName: instance.instance_name, full: false },
+          });
+          totalMsgs += Number(response?.result?.messages ?? 0);
+          const errors = Array.isArray(response?.result?.errors) ? response.result.errors : [];
+          if (errors.length > 0) {
+            failures.push(
+              `${instance.display_name || instance.instance_name}: ${errors.join(" | ")}`,
+            );
+          }
+        } catch (error) {
+          failures.push(
+            `${instance.display_name || instance.instance_name}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+      if (companyId) {
+        await load(companyId);
+        await refreshRecent(companyId);
+        await loadCards(companyId);
+      }
+      if (failures.length > 0) {
+        toast.error(`Falhas na sincronização:\n${failures.join("\n")}`, {
+          duration: 15_000,
+        });
+      } else {
+        toast.success(
+          totalMsgs > 0
+            ? `${totalMsgs} mensagens sincronizadas da Meta.`
+            : "Sincronização concluída. Nenhuma mensagem nova foi encontrada.",
+        );
+      }
+    } finally {
+      setSyncingMeta(false);
+    }
+  }
+
 
 
   return (
@@ -1503,6 +1559,20 @@ function ConversasPage() {
                   <span className="text-foreground">{inst.display_name || "Messenger"}</span>
                 </div>
               ))}
+
+              {/* Botão Sincronizar Meta */}
+              {instances.some(i => i.provider?.startsWith("meta_")) && (
+                <button
+                  type="button"
+                  onClick={handleSyncMeta}
+                  disabled={syncingMeta}
+                  className="inline-flex items-center gap-1 ml-auto px-2 py-0.5 text-[10.5px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 rounded-md border border-[color:var(--hairline)] transition-colors disabled:opacity-50"
+                  title="Sincronizar conversas recentes do Messenger e Instagram"
+                >
+                  <RefreshCw className={`size-2.5 ${syncingMeta ? "animate-spin text-primary" : ""}`} />
+                  <span>{syncingMeta ? "Sincronizando…" : "Sincronizar Meta"}</span>
+                </button>
+              )}
             </div>
           </div>
 

@@ -30,6 +30,7 @@ type SyncResult = {
   notifications: number;
   reactionAlerts: number;
   errors: string[];
+  warnings?: string[];
 };
 
 type EngagementSnapshot = Record<string, {
@@ -114,6 +115,7 @@ function mediaOf(value: any) {
 
 async function checkpoint(admin: Admin, instance: MetaInstance, state: Record<string, unknown>) {
   const key = `meta-sync:${instance.id}`;
+  const now = new Date().toISOString();
   const payload = {
     company_id: instance.company_id,
     external_connection_id: instance.id,
@@ -121,23 +123,33 @@ async function checkpoint(admin: Admin, instance: MetaInstance, state: Record<st
     provider: instance.provider,
     raw_payload: state,
     normalized_count: Number(state.normalizedCount ?? 0),
-    status: "checkpoint",
-    processed_at: new Date().toISOString(),
+    status: "processed",
+    received_at: now,
+    processed_at: now,
   };
-  const { data: existing } = await admin
+  const { data: existing, error: findError } = await admin
     .from("messaging_inbox_events")
     .select("id")
+    .eq("provider", instance.provider)
     .eq("external_event_id", key)
     .maybeSingle();
-  if (existing?.id) await admin.from("messaging_inbox_events").update(payload).eq("id", existing.id);
-  else await admin.from("messaging_inbox_events").insert(payload);
+  if (findError) throw findError;
+  const query = existing?.id
+    ? admin.from("messaging_inbox_events").update(payload).eq("id", existing.id)
+    : admin.from("messaging_inbox_events").insert(payload);
+  const { error } = await query;
+  if (error) {
+    console.error("[checkpoint] Erro ao salvar checkpoint:", error);
+    throw new Error(`Não foi possível salvar o checkpoint Meta: ${error.message}`);
+  }
 }
 
-async function readCheckpoint(admin: Admin, instanceId: string) {
+async function readCheckpoint(admin: Admin, instance: MetaInstance) {
   const { data } = await admin
     .from("messaging_inbox_events")
     .select("raw_payload")
-    .eq("external_event_id", `meta-sync:${instanceId}`)
+    .eq("provider", instance.provider)
+    .eq("external_event_id", `meta-sync:${instance.id}`)
     .maybeSingle();
   return (data?.raw_payload ?? {}) as Record<string, any>;
 }
@@ -145,17 +157,33 @@ async function readCheckpoint(admin: Admin, instanceId: string) {
 /** Persiste histórico sem disparar a IA; o webhook ao vivo é o responsável pela resposta imediata. */
 async function persistMessage(admin: Admin, instance: MetaInstance, item: any, channel: "instagram" | "messenger") {
   const id = String(item?.id ?? "");
-  const sender = participantId(item);
-  if (!id || !sender || !instance.phone_number_id || sender === instance.phone_number_id) return false;
+  if (!id || !instance.phone_number_id) return false;
+
+  const fromId = String(item?.from?.id ?? item?.sender?.id ?? "");
+  const isFromPage = fromId === instance.phone_number_id;
+  const toId = String(item?.to?.data?.[0]?.id ?? item?.recipient?.id ?? "");
+  const customerId = isFromPage ? toId : fromId;
+
+  if (!customerId || customerId === instance.phone_number_id) return false;
+
+  const direcao = isFromPage ? "saida" : "entrada";
+  const autor = isFromPage ? "humano" : "contato";
+  const contactName = isFromPage ? null : (item?.from?.name ?? null);
   const text = textOf(item);
   const media = mediaOf(item);
   const stages = await getStagesBrief(admin, instance.company_id);
-  await upsertCard(admin, instance.company_id, instance.user_id, sender, item?.from?.name ?? null, text, stages, channel);
+  await upsertCard(admin, instance.company_id, instance.user_id, customerId, contactName, text, stages, channel);
+
+  // Garante canal_chat e canal_entrada no crm_cards
+  const patch: any = { canal_chat: channel, canal_entrada: channel };
+  if (contactName) patch.nome = contactName;
+  await admin.from("crm_cards").update(patch).eq("company_id", instance.company_id).eq("numero", customerId);
 
   const { data: existing } = await admin
     .from("mensagens")
     .select("id")
     .eq("company_id", instance.company_id)
+    .eq("provider", instance.provider)
     .eq("whatsapp_message_id", id)
     .limit(1)
     .maybeSingle();
@@ -164,13 +192,15 @@ async function persistMessage(admin: Admin, instance: MetaInstance, item: any, c
   const { data: inserted, error } = await admin.from("mensagens").insert({
     company_id: instance.company_id,
     user_id: instance.user_id,
-    numero: sender,
-    contato_nome: item?.from?.name ?? null,
-    direcao: "entrada",
-    autor: "contato",
+    numero: customerId,
+    contato_nome: contactName,
+    direcao,
+    autor,
     texto: text,
+    provider: instance.provider,
     whatsapp_message_id: id,
     created_at: item?.created_time ? new Date(item.created_time).toISOString() : new Date().toISOString(),
+    status_envio: isFromPage ? "enviado" : "recebido",
     midia_url: media.url,
     midia_tipo: media.type,
     midia_mime: media.mime,
@@ -190,13 +220,65 @@ async function persistMessage(admin: Admin, instance: MetaInstance, item: any, c
   return true;
 }
 
-async function persistComment(admin: Admin, instance: MetaInstance, item: any, channel: "instagram" | "messenger") {
-  const synthetic = {
-    ...item,
-    from: item?.from ?? { id: item?.sender_id ?? item?.username, name: item?.username ?? null },
-    message: item?.message ?? item?.text ?? "",
+async function persistComment(_admin: Admin, _instance: MetaInstance, _item: any, _channel: "instagram" | "messenger") {
+  // Comentários públicos não viram conversas privadas de chat no CRM.
+  // Ficam centralizados no módulo Conteúdo e geram notificações de interação.
+  return false;
+}
+
+function isInstagramLoginToken(token: string) {
+  const clean = String(token ?? "").trim();
+  return /^(IGAA|IGQV|IGQW)/.test(clean);
+}
+
+async function resolveConversationCredentials(
+  admin: any,
+  instance: MetaInstance,
+) {
+  const token = String(instance.instance_token ?? "").trim();
+  if (instance.provider !== "meta_instagram") {
+    return {
+      ownerId: String(instance.phone_number_id ?? ""),
+      token,
+      instagram: false,
+      authMode: "facebook_login" as const,
+    };
+  }
+
+  // Instagram Login trabalha diretamente com o ID de Instagram
+  if (isInstagramLoginToken(token)) {
+    return {
+      ownerId: String(instance.phone_number_id ?? ""),
+      token,
+      instagram: true,
+      authMode: "instagram_login" as const,
+    };
+  }
+
+  // Facebook Login precisa do Page ID e do seu Page Access Token
+  const { data: page, error } = await admin
+    .from("whatsapp_instances")
+    .select("phone_number_id,instance_token,status")
+    .eq("company_id", instance.company_id)
+    .eq("provider", "meta_messenger")
+    .eq("status", "connected")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!page?.phone_number_id || !page?.instance_token) {
+    throw new Error(
+      "Instagram está conectado mediante Facebook Login, mas não foi encontrada a Página do Facebook vinculada com seu Page Access Token.",
+    );
+  }
+
+  return {
+    ownerId: String(page.phone_number_id),
+    token: String(page.instance_token),
+    instagram: true,
+    authMode: "facebook_login" as const,
   };
-  return persistMessage(admin, instance, synthetic, channel);
 }
 
 /** Sincroniza histórico e conteúdo público com paginação limitada e checkpoint idempotente. */
@@ -211,13 +293,14 @@ export async function syncMetaChannel(admin: Admin, instance: MetaInstance, opti
     notifications: 0,
     reactionAlerts: 0,
     errors: [],
+    warnings: [],
   };
   if (!instance.instance_token || !instance.phone_number_id) {
     result.errors.push("Canal sem token ou page/account id");
     return result;
   }
   const channel = instance.provider === "meta_instagram" ? "instagram" : "messenger";
-  const previous = await readCheckpoint(admin, instance.id);
+  const previous = await readCheckpoint(admin, instance);
   const since = options?.full ? undefined : (previous.since as string | undefined);
   const until = new Date().toISOString();
   const maxConversations = options?.maxConversations ?? (options?.full ? 250 : 25);
@@ -228,11 +311,17 @@ export async function syncMetaChannel(admin: Admin, instance: MetaInstance, opti
   const currentEngagement: EngagementSnapshot = { ...previousEngagement };
 
   try {
-    const conversations = await metaListConversations(instance.instance_token, instance.phone_number_id, { since, until, limit: maxConversations, instagram: channel === "instagram" });
+    const credentials = await resolveConversationCredentials(admin, instance);
+    const conversations = await metaListConversations(credentials.token, credentials.ownerId, {
+      since,
+      until,
+      limit: maxConversations,
+      instagram: credentials.instagram,
+    });
     for (const conversation of conversations.data.slice(0, maxConversations)) {
       const messages = Array.isArray(conversation?.messages?.data)
         ? conversation.messages.data
-        : (await metaListConversationMessages(instance.instance_token, String(conversation.id), { since, until, limit: 100 })).data;
+        : (await metaListConversationMessages(credentials.token, String(conversation.id), { since, until, limit: 100 })).data;
       for (const message of messages) {
         if (await persistMessage(admin, instance, message, channel)) result.messages += 1;
       }
@@ -311,24 +400,37 @@ export async function syncMetaChannel(admin: Admin, instance: MetaInstance, opti
     result.errors.push(`feed/comentarios: ${e instanceof Error ? e.message : String(e)}`);
   }
 
-  try {
-    const forms = await metaListLeadForms(instance.instance_token, instance.phone_number_id, { limit: 50 });
-    const { fetchAndProcessMetaLead } = await import("@/lib/meta-leads.server");
-    let leadBudget = 100;
-    for (const form of forms.data.slice(0, 50)) {
-      if (leadBudget <= 0) break;
-      const leads = await metaListFormLeads(instance.instance_token, String(form.id), { since, until, limit: 100 });
-      for (const lead of leads.data.slice(0, leadBudget)) {
-        leadBudget -= 1;
-        const resultLead = await fetchAndProcessMetaLead(admin, instance.phone_number_id, String(lead.id), String(form.id)).catch((error) => {
-          result.errors.push(`lead ${lead.id}: ${error instanceof Error ? error.message : String(error)}`);
-          return null;
-        });
-        if (resultLead?.ok) result.leads += 1;
+  // Lead Ads pertence exclusivamente à Página do Facebook.
+  if (instance.provider === "meta_messenger" && instance.phone_number_id) {
+    try {
+      const forms = await metaListLeadForms(instance.instance_token, instance.phone_number_id, { limit: 50 });
+      const { fetchAndProcessMetaLead } = await import("@/lib/meta-leads.server");
+      let leadBudget = 100;
+      for (const form of forms.data.slice(0, 50)) {
+        if (leadBudget <= 0) break;
+        const leads = await metaListFormLeads(instance.instance_token, String(form.id), { since, until, limit: 100 });
+        for (const lead of leads.data.slice(0, leadBudget)) {
+          leadBudget -= 1;
+          const resultLead = await fetchAndProcessMetaLead(admin, instance.phone_number_id, String(lead.id), String(form.id)).catch((error) => {
+            const message = error instanceof Error ? error.message : String(error);
+            if (/pages_manage_ads|leads_retrieval|leadgen_forms/i.test(message)) {
+              result.warnings?.push(`Lead Ads ${lead.id}: ${message}`);
+            } else {
+              result.errors.push(`lead ${lead.id}: ${message}`);
+            }
+            return null;
+          });
+          if (resultLead?.ok) result.leads += 1;
+        }
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (/pages_manage_ads|leads_retrieval|leadgen_forms/i.test(message)) {
+        result.warnings?.push(`Lead Ads indisponível: ${message}`);
+      } else {
+        result.errors.push(`lead ads: ${message}`);
       }
     }
-  } catch (e) {
-    result.errors.push(`lead ads: ${e instanceof Error ? e.message : String(e)}`);
   }
 
   // Se algum bloco falhou, não avançamos o cursor além do último ponto confirmado;
