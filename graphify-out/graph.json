@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-10T23:20:31.608016+00:00",
+  "generated_at": "2026-10-11T01:13:29.426060+00:00",
   "files": [
     {
       "path": "roadmap.md",
@@ -831,7 +831,7 @@
     },
     {
       "path": "src/lib/meta-content.functions.ts",
-      "bytes": 12406
+      "bytes": 13878
     },
     {
       "path": "src/lib/plugin-gate.server.ts",
@@ -959,7 +959,7 @@
     },
     {
       "path": "src/lib/meta.server.ts",
-      "bytes": 21366
+      "bytes": 22454
     },
     {
       "path": "src/lib/wa-interactive.ts",
@@ -1183,7 +1183,7 @@
     },
     {
       "path": "src/lib/meta-sync.server.ts",
-      "bytes": 15018
+      "bytes": 18424
     },
     {
       "path": "src/lib/olist.functions.ts",
@@ -2191,7 +2191,7 @@
     },
     {
       "path": "src/components/content/meta-content-center.tsx",
-      "bytes": 27802
+      "bytes": 33113
     },
     {
       "path": "src/components/master/signup-welcome-card.tsx",
@@ -2423,7 +2423,7 @@
     },
     {
       "path": "src/routes/app/conversas.tsx",
-      "bytes": 185962
+      "bytes": 188699
     },
     {
       "path": "src/routes/app/treinamentos.tsx",
@@ -2707,7 +2707,7 @@
     },
     {
       "path": "src/routes/api/public/meta-webhook.ts",
-      "bytes": 23507
+      "bytes": 24229
     },
     {
       "path": "src/routes/api/public/v1/$.ts",
@@ -5142,6 +5142,14 @@
     {
       "source": "src/lib/meta-content.functions.ts",
       "target": "./meta-sync.server"
+    },
+    {
+      "source": "src/lib/meta-content.functions.ts",
+      "target": "@/integrations/supabase/client.server"
+    },
+    {
+      "source": "src/lib/meta-content.functions.ts",
+      "target": "./meta.server"
     },
     {
       "source": "src/lib/admin-crm.functions.ts",
@@ -12826,6 +12834,10 @@
     {
       "source": "src/routes/app/conversas.tsx",
       "target": "@/lib/storage/r2.functions"
+    },
+    {
+      "source": "src/routes/app/conversas.tsx",
+      "target": "@/lib/meta-content.functions"
     },
     {
       "source": "src/routes/app/conversas.tsx",
